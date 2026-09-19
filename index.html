@@ -76,7 +76,30 @@ const SUPABASE_PUBLISHABLE_KEY="sb_publishable_F_JX1g6axQQBZUJTVRCqUA_fEc5YsA2";
 const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const CATALOG=[['Kabinet Dapur','kabinet-dapur-01.jpg'],['Kabinet Dapur','kabinet-dapur-02.jpg'],['Kabinet Dapur','kabinet-dapur-03.jpg'],['Kabinet Dapur','kabinet-dapur-04.jpg'],['Kabinet Dapur','kabinet-dapur-05.jpg'],['Kabinet Dapur','kabinet-dapur-06.jpg'],['Kabinet Dapur','kabinet-dapur-07.jpg'],['Rak TV','rak-tv-01.jpg'],['Rak TV','rak-tv-02.jpg'],['Rak TV','rak-tv-03.jpg'],['Rak TV','rak-tv-04.jpg'],['Almari Bilik','almari-bilik-01.jpg'],['Almari Bilik','almari-bilik-02.jpg'],['Almari Bilik','almari-bilik-03.jpg'],['Panel Dinding','panel-dinding-01.jpg'],['Bawah Tangga','bawah-tangga-01.jpg'],['Rak Display','rak-display-01.jpg'],['Rak Display','rak-display-02.jpg']];
 const MATERIALS={Melamine:{lower:150,upperStandard:240,upperCeiling:270},Formica:{lower:190,upperStandard:330,upperCeiling:370}};
-function money(n){return 'RM '+Number(n||0).toLocaleString('ms-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}function wa(t){window.open('https://wa.me/601113232186?text='+encodeURIComponent(t),'_blank')}
+function money(n){return 'RM '+Number(n||0).toLocaleString('ms-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+async function wa(t){
+  const params=new URLSearchParams(window.location.search);
+  const slug=(params.get('agent')||'').toLowerCase().trim();
+  let phone='601113232186';
+
+  if(slug){
+    const {data}=await supabaseClient
+      .from('agents')
+      .select('phone')
+      .eq('slug',slug)
+      .eq('active',true)
+      .maybeSingle();
+
+    if(data?.phone){
+      phone=String(data.phone).replace(/[^0-9]/g,'');
+      if(phone.startsWith('0')) phone='60'+phone.slice(1);
+      else if(!phone.startsWith('60')) phone='60'+phone;
+    }
+  }
+
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(t),'_blank');
+}
 function show(id){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));const n={home:'n1',catalog:'n2',estimate:'n3',booking:'n4'}[id];if(n)document.getElementById(n).classList.add('active');window.scrollTo(0,0);if(id==='catalog')renderCatalog('Semua');if(id==='estimate')updateForm()}
 function openCatalog(cat){show('catalog');renderCatalog(cat)}
 function renderCatalog(cat){const g=document.getElementById('catalogGrid');g.innerHTML='';CATALOG.filter(x=>cat==='Semua'||x[0]===cat).forEach(x=>{const d=document.createElement('div');d.className='item';const img=document.createElement('img');img.src=x[1];img.onclick=()=>preview(x[1],x[0]);const name=document.createElement('div');name.textContent=x[0];d.append(img,name);g.appendChild(d)})}
@@ -112,7 +135,7 @@ async function sendBooking(){
     accessories:accessories,
     estimated_price:null,
     status:'baru',
-    source:'customer_web'
+    source:'customer_web|agent='+(new URLSearchParams(window.location.search).get('agent')||'').toLowerCase().trim()
   };
 
   const btn=document.querySelector('.booking-wa');
