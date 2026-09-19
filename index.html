@@ -110,8 +110,7 @@ function updateForm(){const t=document.getElementById('type').value,m=document.g
 function calcEstimate(){const t=document.getElementById('type').value,m=document.getElementById('material').value||'Melamine';let r=null,a=0;if(t==='lower'){r=MATERIALS[m].lower;a=+document.getElementById('l')?.value||0;}else if(t==='upper'){r=document.getElementById('upperHeight')?.value==='ceiling'?MATERIALS[m].upperCeiling:MATERIALS[m].upperStandard;a=+document.getElementById('l')?.value||0;}else{document.getElementById('estimatePrice').textContent='Harga akan diberikan selepas ukuran';return;}document.getElementById('estimatePrice').textContent=money(a*r)}
 function waEstimate(){const t=document.getElementById('type').value,m=document.getElementById('material').value,price=document.getElementById('estimatePrice').textContent;const labels={lower:'Kabinet Dapur Bawah',upper:'Kabinet Dapur Atas',tv:'Kabinet TV',ward:'Almari Bilik'};const u=(t==='lower')?((document.getElementById('l')?.value||0)+' kaki selari'):((t==='upper')?((document.getElementById('l')?.value||0)+' kaki selari, '+(document.getElementById('upperHeight')?.value==='ceiling'?'sampai siling':'standard')):((document.getElementById('w')?.value||0)+' x '+(document.getElementById('h')?.value||0)+' kaki'));wa('Salam Saujana Sejati Ent, saya nak semak anggaran.\nJenis: '+labels[t]+'\nMaterial: '+m+'\nUkuran: '+u+'\nAnggaran: '+price+'\nAksesori: '+(getSelectedAccessories().join(', ')||'Tiada')+'\nSaya ingin dapatkan maklumat lanjut.')}
 updateForm();renderCatalog('Semua');
-
-function getSelectedAccessories(){
+async function sendBooking(){
   const name=document.getElementById('bkName').value.trim();
   const phone=document.getElementById('bkPhone').value.trim();
   const type=document.getElementById('bkType').value;
@@ -123,6 +122,7 @@ function getSelectedAccessories(){
   const note=document.getElementById('bkNote').value.trim();
   const deposit=document.getElementById('bkDeposit').value;
   const depositProof=document.getElementById('bkDepositProof').files[0];
+  const accessories=getSelectedAccessories();
 
   if(!name||!phone||!type||!measurement||!date||!time||!address){
     alert('Sila lengkapkan semua ruangan bertanda * terlebih dahulu.');
@@ -157,14 +157,10 @@ function getSelectedAccessories(){
     const {error:uploadError}=await supabaseClient
       .storage
       .from('deposit-proofs')
-      .upload(
-        filePath,
-        depositProof,
-        {
-          contentType:depositProof.type||'image/jpeg',
-          upsert:false
-        }
-      );
+      .upload(filePath,depositProof,{
+        contentType:depositProof.type||'image/jpeg',
+        upsert:false
+      });
 
     if(uploadError) throw uploadError;
 
@@ -180,7 +176,7 @@ function getSelectedAccessories(){
       booking_time:time,
       address:address,
       notes:note||null,
-      accessories:getSelectedAccessories(),
+      accessories:accessories,
       estimated_price:null,
       deposit_amount:Number(deposit)||0,
       deposit_proof_path:depositProofPath,
@@ -223,8 +219,6 @@ function getSelectedAccessories(){
     btn.innerHTML=oldText;
   }
 }
-
-
 
 function getSelectedAccessories(){
   const items = Array.from(document.querySelectorAll('.acc:checked')).map(x=>x.value);
