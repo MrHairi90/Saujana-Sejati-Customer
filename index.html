@@ -39,7 +39,9 @@
         <div class="field full"><label>Ukuran *</label><input id="bkMeasurement" type="text" placeholder="Contoh: 20 kaki selari / 10 kaki × 7 kaki"></div>
         <div class="field"><label>Tarikh Pilihan *</label><input id="bkDate" type="date"></div>
         <div class="field"><label>Masa Pilihan *</label><input id="bkTime" type="time"></div>
-        <div class="field full"><label>Alamat / Lokasi *</label><input id="bkAddress" type="text" placeholder="Contoh: Taman Seri Indah, Ipoh, Perak"></div>
+        <div class="field"><label>Jumlah Deposit (RM) *</label><input id="bkDeposit" type="number" min="0" step="0.01" placeholder="Contoh: 500"></div>
+<div class="field"><label>Bukti Deposit *</label><input id="bkDepositProof" type="file" accept="image/*"></div>
+<div class="field full"><label>Alamat / Lokasi *</label><input id="bkAddress" type="text" placeholder="Contoh: Taman Seri Indah, Ipoh, Perak"></div>
         <div class="field full"><label>Catatan Tambahan</label><textarea id="bkNote" rows="3" placeholder="Contoh: Nak kabinet bentuk L, warna kelabu, dll."></textarea></div>
       </div>
 
@@ -118,25 +120,10 @@ async function sendBooking(){
   const date=document.getElementById('bkDate').value;
   const time=document.getElementById('bkTime').value;
   const address=document.getElementById('bkAddress').value.trim();
-  const note=document.getElementById('bkNote').value.trim();
-  if(!name||!phone||!type||!measurement||!date||!time||!address){alert('Sila lengkapkan semua ruangan bertanda * terlebih dahulu.');return;}
+ const note=document.getElementById('bkNote').value.trim();const deposit=document.getElementById('bkDeposit').value;const depositProof=document.getElementById('bkDepositProof').files[0];
+ if(!name||!phone||!type||!measurement||!date||!time||!address){alert('Sila lengkapkan semua ruangan bertanda * terlebih dahulu.');return;}if(!deposit||Number(deposit)<=0){alert('Sila masukkan jumlah deposit.');return;}if(!depositProof){alert('Sila upload bukti deposit.');return;}
 
-  const accessories=getSelectedAccessories();
-  const payload={
-    customer_name:name,
-    phone:phone,
-    cabinet_type:type,
-    material:material,
-    measurement:measurement,
-    booking_date:date,
-    booking_time:time,
-    address:address,
-    notes:note||null,
-    accessories:accessories,
-    estimated_price:null,
-    status:'baru',
-    source:'customer_web|agent='+(new URLSearchParams(window.location.search).get('agent')||'').toLowerCase().trim()
-  };
+  const accessories=getSelectedAccessories();let depositProofPath=null;if(depositProof){const ext=(depositProof.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'');const filePath='customer/'+crypto.randomUUID()+'.'+(ext||'jpg');const {error:uploadError}=await supabaseClient.storage.from('deposit-proofs').upload(filePath,depositProof,{contentType:depositProof.type||'image/jpeg',upsert:false});if(uploadError){alert('Bukti deposit gagal dimuat naik.\n\nRalat: '+uploadError.message);return;}depositProofPath=filePath;}const payload={customer_name:name,phone:phone,cabinet_type:type,material:material,measurement:measurement,booking_date:date,booking_time:time,address:address,notes:note||null,accessories:accessories,estimated_price:null,deposit_amount:Number(deposit)||0,deposit_proof_path:depositProofPath,status:'baru',source:'customer_web|agent='+(new URLSearchParams(window.location.search).get('agent')||'').toLowerCase().trim()};
 
   const btn=document.querySelector('.booking-wa');
   const oldText=btn.innerHTML;
@@ -147,7 +134,7 @@ async function sendBooking(){
     const {error}=await supabaseClient.from('bookings').insert([payload]);
     if(error) throw error;
 
-    const msg='Salam Saujana Sejati Ent, saya ingin membuat booking ukuran & konsultasi.\n\nNama: '+name+'\nNo. WhatsApp: '+phone+'\nJenis kabinet: '+type+'\nMaterial: '+material+'\nUkuran: '+measurement+'\nTarikh: '+date+'\nMasa: '+time+'\nAlamat/Lokasi: '+address+'\nAksesori: '+(accessories.join(', ')||'-')+'\nCatatan: '+(note||'-')+'\n\nBooking saya sudah dihantar melalui website. Mohon sahkan temujanji. Terima kasih.';
+    const msg='Salam Saujana Sejati Ent, saya ingin membuat booking ukuran & konsultasi.\n\nNama: '+name+'\nNo. WhatsApp: '+phone+'\nJenis kabinet: '+type+'\nMaterial: '+material+'\nUkuran: '+measurement+'\nTarikh: '+date+'\nMasa: '+time+'\nAlamat/Lokasi: '+address+'\nJumlah Deposit: RM '+Number(deposit).toFixed(2)+'\nBukti Deposit: Telah dimuat naik melalui website\nAksesori: '+(accessories.join(', ')||'-')+'\nCatatan: '+(note||'-')+'\n\nBooking saya sudah dihantar melalui website. Mohon sahkan temujanji dan penerimaan deposit. Terima kasih.';
     alert('Booking berjaya dihantar! Terima kasih.');
     wa(msg);
   }catch(err){
