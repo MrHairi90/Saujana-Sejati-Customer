@@ -120,26 +120,105 @@ async function sendBooking(){
   const date=document.getElementById('bkDate').value;
   const time=document.getElementById('bkTime').value;
   const address=document.getElementById('bkAddress').value.trim();
- const note=document.getElementById('bkNote').value.trim();const deposit=document.getElementById('bkDeposit').value;const depositProof=document.getElementById('bkDepositProof').files[0];
- if(!name||!phone||!type||!measurement||!date||!time||!address){alert('Sila lengkapkan semua ruangan bertanda * terlebih dahulu.');return;}if(!deposit||Number(deposit)<=0){alert('Sila masukkan jumlah deposit.');return;}if(!depositProof){alert('Sila upload bukti deposit.');return;}
+  const note=document.getElementById('bkNote').value.trim();
+  const deposit=document.getElementById('bkDeposit').value;
+  const depositProof=document.getElementById('bkDepositProof').files[0];
+  const accessories=getSelectedAccessories();
 
-  const payload={customer_name:name,phone:phone,cabinet_type:type,material:material,measurement:measurement,booking_date:date,booking_time:time,address:address,notes:note||null,accessories:accessories,estimated_price:null,deposit_amount:Number(deposit)||0,deposit_proof_path:depositProofPath,status:'baru',source:'customer_website'};
+  if(!name||!phone||!type||!measurement||!date||!time||!address){
+    alert('Sila lengkapkan semua ruangan bertanda * terlebih dahulu.');
+    return;
+  }
+
+  if(!deposit||Number(deposit)<=0){
+    alert('Sila masukkan jumlah deposit.');
+    return;
+  }
+
+  if(!depositProof){
+    alert('Sila upload bukti deposit.');
+    return;
+  }
+
+  let depositProofPath=null;
 
   const btn=document.querySelector('.booking-wa');
   const oldText=btn.innerHTML;
+
   btn.disabled=true;
   btn.innerHTML='⏳ Menyimpan booking...';
 
   try{
-    const {error}=await supabaseClient.from('bookings').insert([payload]);
+    const ext=(depositProof.name.split('.').pop()||'jpg')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g,'');
+
+    const filePath='customer/'+crypto.randomUUID()+'.'+(ext||'jpg');
+
+    const {error:uploadError}=await supabaseClient
+      .storage
+      .from('deposit-proofs')
+      .upload(
+        filePath,
+        depositProof,
+        {
+          contentType:depositProof.type||'image/jpeg',
+          upsert:false
+        }
+      );
+
+    if(uploadError) throw uploadError;
+
+    depositProofPath=filePath;
+
+    const payload={
+      customer_name:name,
+      phone:phone,
+      cabinet_type:type,
+      material:material,
+      measurement:measurement,
+      booking_date:date,
+      booking_time:time,
+      address:address,
+      notes:note||null,
+      accessories:accessories,
+      estimated_price:null,
+      deposit_amount:Number(deposit)||0,
+      deposit_proof_path:depositProofPath,
+      status:'baru',
+      source:'customer_website'
+    };
+
+    const {error}=await supabaseClient
+      .from('bookings')
+      .insert([payload]);
+
     if(error) throw error;
 
-    const msg='Salam Saujana Sejati Ent, saya ingin membuat booking ukuran & konsultasi.\n\nNama: '+name+'\nNo. WhatsApp: '+phone+'\nJenis kabinet: '+type+'\nMaterial: '+material+'\nUkuran: '+measurement+'\nTarikh: '+date+'\nMasa: '+time+'\nAlamat/Lokasi: '+address+'\nJumlah Deposit: RM '+Number(deposit).toFixed(2)+'\nBukti Deposit: Telah dimuat naik melalui website\nAksesori: '+(accessories.join(', ')||'-')+'\nCatatan: '+(note||'-')+'\n\nBooking saya sudah dihantar melalui website. Mohon sahkan temujanji dan penerimaan deposit. Terima kasih.';
+    const msg='Salam Saujana Sejati Ent, saya ingin membuat booking ukuran & konsultasi.\n\n'+
+      'Nama: '+name+'\n'+
+      'No. WhatsApp: '+phone+'\n'+
+      'Jenis kabinet: '+type+'\n'+
+      'Material: '+material+'\n'+
+      'Ukuran: '+measurement+'\n'+
+      'Tarikh: '+date+'\n'+
+      'Masa: '+time+'\n'+
+      'Alamat/Lokasi: '+address+'\n'+
+      'Jumlah Deposit: RM '+Number(deposit).toFixed(2)+'\n'+
+      'Bukti Deposit: Telah dimuat naik melalui website\n'+
+      'Aksesori: '+(accessories.join(', ')||'-')+'\n'+
+      'Catatan: '+(note||'-')+'\n\n'+
+      'Booking saya sudah dihantar melalui website. Mohon sahkan temujanji dan penerimaan deposit. Terima kasih.';
+
     alert('Booking berjaya dihantar! Terima kasih.');
     wa(msg);
+
   }catch(err){
     console.error(err);
-    alert('Booking belum berjaya disimpan. Sila cuba lagi.\\n\\nRalat: '+(err.message||'Tidak diketahui'));
+    alert(
+      'Booking belum berjaya disimpan. Sila cuba lagi.\n\nRalat: '+
+      (err.message||'Tidak diketahui')
+    );
   }finally{
     btn.disabled=false;
     btn.innerHTML=oldText;
