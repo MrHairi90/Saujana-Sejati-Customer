@@ -42,9 +42,11 @@
         <div class="field"><label>Jumlah Deposit (RM) *</label><input id="bkDeposit" type="number" min="0" step="0.01" placeholder="Contoh: 500"></div>
 <div class="field"><label>Bukti Deposit *</label><input id="bkDepositProof" type="file" accept="image/*"></div>
 <div class="field full"><label>Alamat / Lokasi *</label><input id="bkAddress" type="text" placeholder="Contoh: Taman Seri Indah, Ipoh, Perak"></div>
-        <div class="field full"><label>Catatan Tambahan</label><textarea id="bkNote" rows="3" placeholder="Contoh: Nak kabinet bentuk L, warna kelabu, dll."></textarea></div>
-      </div>
-
+        <div class="field full"><label>Catatan Tambahan</label><div class="field full"><textarea id="bkNote" rows="3" placeholder="Contoh: Nak kabinet bentuk L, warna kelabu, dll."></textarea></div>
+      </div>div class="field full">
+      <label>📸 Gambar Ruang / Rujukan</label>
+      <input id="bkReferenceImages" type="file" accept="image/*" multiple>
+      <div id="referenceImageList" style="margin-top:12px;display:grid;gap:10px"></div>
       <div class="booking-accessories">
         <h3>4. Tambahan Aksesori <span>(Pilihan)</span></h3>
         <p>Pilih jika diperlukan. Harga aksesori akan disahkan oleh pihak Saujana Sejati Ent.</p>
@@ -219,8 +221,26 @@ async function sendBooking(){
     btn.innerHTML=oldText;
   }
 }
+document.getElementById('bkReferenceImages').addEventListener('change', function(){
+  const list=document.getElementById('referenceImageList');
+  list.innerHTML='';
 
-function getSelectedAccessories(){
+  Array.from(this.files).forEach(file=>{
+    const reader=new FileReader();
+
+    reader.onload=function(e){
+      const box=document.createElement('div');
+      box.innerHTML=`
+        <img src="${e.target.result}" style="width:100%;max-width:300px;border-radius:10px;">
+        <input type="text" class="reference-caption" placeholder="Contoh: Ini keluasan dapur yang saya nak buat" style="width:100%;margin-top:8px;padding:10px;">
+      `;
+      list.appendChild(box);
+    };
+
+    reader.readAsDataURL(file);
+  });
+});
+  function getSelectedAccessories(){
   const items = Array.from(document.querySelectorAll('.acc:checked')).map(x=>x.value);
   const other = document.getElementById('otherAccessory');
   if(other && other.value.trim() && document.querySelector('.acc[value="Aksesori lain"]:checked')){
